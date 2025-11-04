@@ -93,12 +93,14 @@ StartTest:
     GuiControl, Text, StatusText, Starting DNS speed tests...
     GuiControl,, ProgressBar, 0
 
-    ; Count checked items
+    ; Count checked items using proper method
     checkedCount := 0
-    Loop, % LV_GetCount() {
-        LV_GetText(isChecked, A_Index, 1)
-        if (LV_GetText(checked, A_Index) && LV_GetText(isChecked, A_Index, 1) = "1")
-            checkedCount++
+    row := 0
+    Loop {
+        row := LV_GetNext(row, "Checked")
+        if !row
+            break
+        checkedCount++
     }
 
     if (checkedCount = 0) {
@@ -124,14 +126,12 @@ StartTest:
     currentTest := 0
     totalTests := checkedCount
 
-    ; Test each checked DNS server
-    Loop, % LV_GetCount() {
-        row := A_Index
-
-        ; Check if this row is checked
-        LV_GetText(isChecked, row, 1)
-        if !LV_GetText(isChecked, row, 1)
-            continue
+    ; Test each checked DNS server using proper iteration
+    row := 0
+    Loop {
+        row := LV_GetNext(row, "Checked")
+        if !row
+            break
 
         currentTest++
 
@@ -140,11 +140,11 @@ StartTest:
 
         ; Update status
         LV_Modify(row, , , dnsName, dnsIP, "Testing...", "")
-        GuiControl, Text, StatusText, Testing %dnsName% (%dnsIP%) - %currentTest%/%totalTests%
+        GuiControl, Text, StatusText, Testing %dnsName% (%dnsIP%) - DNS %currentTest%/%totalTests%
         GuiControl,, ProgressBar, % (currentTest - 1) * 100 / totalTests
 
-        ; Perform DNS speed test
-        responseTime := TestDNSSpeed(dnsIP, TestDomain, Timeout, TestCount)
+        ; Perform DNS speed test with progress updates
+        responseTime := TestDNSSpeed(dnsIP, dnsName, TestDomain, Timeout, TestCount, currentTest, totalTests)
 
         ; Update results
         if (responseTime = -1) {
@@ -180,34 +180,44 @@ StartTest:
         GuiControl, Text, StatusText, Testing complete! Fastest DNS: %fastestDNS% (%fastestTime% ms)
 return
 
-; Test DNS speed function
-TestDNSSpeed(dnsServer, domain, timeout, testCount) {
+; Test DNS speed function with hidden CMD windows and detailed progress
+TestDNSSpeed(dnsServer, dnsName, domain, timeout, testCount, currentDNS, totalDNS) {
     totalTime := 0
     successCount := 0
 
     Loop, %testCount% {
+        testNum := A_Index
+
+        ; Update status with current test progress
+        GuiControl, Text, StatusText, Testing %dnsName% (%dnsServer%) - DNS %currentDNS%/%totalDNS% | Test %testNum%/%testCount%
+
         startTime := A_TickCount
 
+        ; Create temporary file for output
+        tempFile := A_Temp . "\dns_test_" . A_TickCount . ".txt"
+
         ; Use nslookup to test DNS resolution
-        cmd := "nslookup -timeout=1 " . domain . " " . dnsServer . " 2>&1"
+        cmd := "nslookup -timeout=1 " . domain . " " . dnsServer . " > """ . tempFile . """ 2>&1"
 
-        ; Run command and capture output
+        ; Run command with hidden window (0 = hide window, true = wait for completion)
         shell := ComObjCreate("WScript.Shell")
-        exec := shell.Exec(ComSpec " /c " . cmd)
-        output := exec.StdOut.ReadAll()
-
-        ; Wait for completion with timeout
-        timeoutCounter := 0
-        while (exec.Status = 0 && timeoutCounter < timeout) {
-            Sleep, 50
-            timeoutCounter += 50
-        }
+        shell.Run(ComSpec " /c " . cmd, 0, true)
 
         endTime := A_TickCount
         responseTime := endTime - startTime
 
+        ; Check if response time exceeds timeout
+        if (responseTime > timeout) {
+            FileDelete, %tempFile%
+            continue
+        }
+
+        ; Read output from temp file
+        FileRead, output, %tempFile%
+        FileDelete, %tempFile%
+
         ; Check if the lookup was successful
-        if (InStr(output, "Name:") || InStr(output, "Address:")) {
+        if (InStr(output, "Name:") || InStr(output, "Address:") && !InStr(output, "can't find")) {
             totalTime += responseTime
             successCount++
         }

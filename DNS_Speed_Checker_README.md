@@ -8,7 +8,9 @@ An AutoHotkey GUI application for testing and comparing DNS server response time
 - **Custom DNS Support**: Add your own DNS servers to test
 - **Multiple Tests**: Run multiple tests per DNS server for accurate average response times
 - **Visual Results**: Clear display of response times with automatic sorting by speed
-- **Progress Tracking**: Real-time progress bar and status updates
+- **Detailed Progress Tracking**: Real-time progress bar and status updates showing current DNS being tested and test iteration
+- **Hidden CMD Windows**: Tests run silently in the background without showing command prompt windows
+- **Smart Selection**: Only tests DNS servers you have selected (checkboxes work correctly)
 - **Flexible Configuration**: Customize test domain, timeout, and number of tests
 
 ## Requirements
@@ -103,6 +105,22 @@ An AutoHotkey GUI application for testing and comparing DNS server response time
 ## How It Works
 
 The script uses Windows' `nslookup` command to perform DNS lookups against each selected DNS server. It measures the time taken for each lookup and calculates the average response time across multiple tests.
+
+The tests run in hidden mode (no visible CMD windows) and provide detailed real-time progress updates showing:
+- Which DNS server is currently being tested
+- Current DNS number out of total selected
+- Current test iteration (e.g., "Test 2/3")
+
+## Recent Improvements
+
+### Version 1.1
+- **Fixed Selection Bug**: Checkbox selection now works correctly - only selected DNS servers are tested
+- **Hidden CMD Windows**: Command prompt windows no longer appear during testing
+- **Enhanced Progress Display**: Status bar now shows detailed progress including:
+  - Current DNS server being tested
+  - DNS count (e.g., "DNS 2/5")
+  - Current test iteration (e.g., "Test 1/3")
+- **Better User Experience**: Cleaner testing process with no distracting windows
 
 ## License
 
